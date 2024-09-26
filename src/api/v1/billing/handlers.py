@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 
 billing = APIRouter(
@@ -14,4 +15,4 @@ billing = APIRouter(
 def get_operations_history(
     request: Request
 ):
-    return None
+    return JSONResponse(content=None)

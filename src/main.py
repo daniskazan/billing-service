@@ -1,6 +1,5 @@
 import enum
 import abc
-import logging
 import typing
 import uvicorn
 from starlette.types import ExceptionHandler
@@ -89,25 +88,29 @@ class RoutingHandler(HandlersProvidable):
 
 
 class Server:
+    app: typing.ClassVar[FastAPI] = FastAPI(
+            title="Billing Service API",
+    )
     observers: typing.ClassVar[list[HandlersProvidable]] = [
+        RoutingHandler(),
         StartupEventsHandler(),
         ExceptionsHandler(),
-        RoutingHandler()
     ]
 
-    def __init__(self, cfg: ServerConfig):
-        self.app = FastAPI(
-            title="Billing Service API",
-            debug=cfg.debug
-        )
+    def __init__(self, server_config: ServerConfig):
         self.config = server_config
+
+    @classmethod
+    def _notify(cls) -> None:
+        for observer in cls.observers:
+            observer.notify(sender=cls.app)
 
     def __call__(self) -> FastAPI:
         return self.app
 
-    def prerun(self) -> None:
-        for observer in self.observers:
-            observer.notify(sender=self.app)
+    def __new__(cls, *args, **kwargs):
+        cls._notify()
+        return super().__new__(cls)
 
     def run(self) -> None:
         uvicorn.run(
@@ -124,9 +127,8 @@ server_config = ServerConfig(
     db_config=DBConfig(),
     jwt_config=JWTConfig()
 )
-server = Server(cfg=server_config)
+server = Server(server_config)
 
 
 if __name__ == '__main__':
-    server.prerun()
     server.run()
