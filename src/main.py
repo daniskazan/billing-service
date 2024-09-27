@@ -3,6 +3,7 @@ import abc
 import typing
 import uvicorn
 from starlette.types import ExceptionHandler
+from fastapi import status
 from fastapi import FastAPI
 from fastapi.routing import APIRouter
 from fastapi.exceptions import RequestValidationError
@@ -31,30 +32,32 @@ class ExceptionCodeEnum(enum.StrEnum):
 
 class ExceptionsHandler(HandlersProvidable):
     @staticmethod
-    def handler_422(request: Request) -> JSONResponse:
+    def handler_422(request: Request, exc: RequestValidationError) -> JSONResponse:
         return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
             content={
                 "code": ExceptionCodeEnum.UNPROCCESSABLE_ENTITY
             }
         )
 
     @staticmethod
-    def handler_500(request: Request) -> JSONResponse:
+    def handler_500(request: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "code": ExceptionCodeEnum.INTERNAL_SERVER_ERROR
             }
         )
 
-    def get_handlers(self) -> list[tuple[type[Exception], ExceptionHandler]]:
+    def get_handlers(self) -> list[tuple[ExceptionHandler, type[Exception]]]:
         return [
-            (RequestValidationError, self.handler_422),
-            (Exception, self.handler_500)
+            (self.handler_500, Exception),
+            (self.handler_422, RequestValidationError)
         ]
 
     def notify(self, sender: FastAPI) -> None:
-        for exc, exception_handler in self.get_handlers():
-            sender.add_exception_handler(exc, handler=exception_handler)
+        for handler, exc in self.get_handlers():
+            sender.add_exception_handler(exc, handler=handler)
 
 
 class StartupEventsHandler(HandlersProvidable):

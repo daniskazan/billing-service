@@ -15,4 +15,4 @@ billing = APIRouter(
 def get_operations_history(
     request: Request
 ):
-    return JSONResponse(content=None)
+    raise Exception
